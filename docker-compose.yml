@@ -1,0 +1,67 @@
+version: "3.8"
+
+services:
+  yshop-mysql:
+    image: mysql:8.0
+    container_name: yshop-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: yixiang-drink-open
+      MYSQL_ROOT_PASSWORD: root
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./yshop-drink-boot3/sql/yixiang-drink-open.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    command: --default-authentication-plugin=mysql_native_password
+
+  yshop-redis:
+    image: redis:6-alpine
+    container_name: yshop-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  yshop-server:
+    build:
+      context: ./yshop-drink-boot3
+      dockerfile: Dockerfile
+    container_name: yshop-server
+    restart: always
+    ports:
+      - "48081:48081"
+    environment:
+      TZ: Asia/Shanghai
+      JAVA_OPTS: "-Xms512m -Xmx512m -Djava.security.egd=file:/dev/./urandom"
+      # 使用 Spring Boot 环境变量配置覆盖 application.yml 中的配置
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL: jdbc:mysql://yshop-mysql:3306/yixiang-drink-open?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_USERNAME: root
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_PASSWORD: root
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_SLAVE_URL: jdbc:mysql://yshop-mysql:3306/yixiang-drink-open?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_SLAVE_USERNAME: root
+      SPRING_DATASOURCE_DYNAMIC_DATASOURCE_SLAVE_PASSWORD: root
+      SPRING_REDIS_HOST: yshop-redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_HOST: yshop-redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      - yshop-mysql
+      - yshop-redis
+
+  yshop-admin:
+    build:
+      context: ./yshop-drink-vue3
+      dockerfile: Dockerfile
+    container_name: yshop-admin
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - yshop-server
+
+volumes:
+  mysql_data:
+  redis_data:
