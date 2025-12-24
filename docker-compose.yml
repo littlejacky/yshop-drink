@@ -58,7 +58,7 @@ services:
     container_name: yshop-admin
     restart: always
     ports:
-      - "80:80"
+      - "81:80"
     depends_on:
       - yshop-server
 
